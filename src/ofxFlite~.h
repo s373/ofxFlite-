@@ -2,6 +2,47 @@
 // adapted from s373AVSpeak~, in ofxs373A~, 2012+
 // Created by andré sier on 20160530.
 
+/*************************************************************************/
+/*                                                                       */
+/*                  Language Technologies Institute                      */
+/*                     Carnegie Mellon University                        */
+/*                        Copyright (c) 1999                             */
+/*                        All Rights Reserved.                           */
+/*                                                                       */
+/*  Permission is hereby granted, free of charge, to use and distribute  */
+/*  this software and its documentation without restriction, including   */
+/*  without limitation the rights to use, copy, modify, merge, publish,  */
+/*  distribute, sublicense, and/or sell copies of this work, and to      */
+/*  permit persons to whom this work is furnished to do so, subject to   */
+/*  the following conditions:                                            */
+/*   1. The code must retain the above copyright notice, this list of    */
+/*      conditions and the following disclaimer.                         */
+/*   2. Any modifications must be clearly marked as such.                */
+/*   3. Original authors' names are not deleted.                         */
+/*   4. The authors' names are not used to endorse or promote products   */
+/*      derived from this software without specific prior written        */
+/*      permission.                                                      */
+/*                                                                       */
+/*  CARNEGIE MELLON UNIVERSITY AND THE CONTRIBUTORS TO THIS WORK         */
+/*  DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING      */
+/*  ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT   */
+/*  SHALL CARNEGIE MELLON UNIVERSITY NOR THE CONTRIBUTORS BE LIABLE      */
+/*  FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES    */
+/*  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN   */
+/*  AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,          */
+/*  ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF       */
+/*  THIS SOFTWARE.                                                       */
+/*                                                                       */
+/*************************************************************************/
+/*             Author:  Alan W Black (awb@cs.cmu.edu)                    */
+/*               Date:  December 1999                                    */
+/*************************************************************************/
+/*                                                                       */
+/*  Light weight run-time speech synthesis system, public API            */
+/*                                                                       */
+/*************************************************************************/
+
+
 #pragma once
 #include <string>
 #include <vector>
@@ -49,7 +90,8 @@ protected:
 					bufferhead, maxbufferhead,
 					oldfullbuffersize;
 	float 			bufferlocf, bufferspeedf,
-					bufferlocminpercent, bufferlocmaxpercent;
+					bufferlocminpercent, bufferlocmaxpercent,
+					bufferdistpercent;
 	std::string 	fullbufferstr,bufferstr;
 	bool 			loop, mayread, reachedend;
 	vector<std::string>	fullbuffers;
@@ -96,6 +138,7 @@ public:
 		flitesamplerate = 16000; ///!
 		// flitesamplerate = 8000; ///!
 		setSpeakSpeed(speed);
+		setMinMaxBufferLoc(0,1);
 
 		for(int i=0; i<numbuffersamples;i++){
 			bufferstr+='\0';
@@ -198,6 +241,12 @@ public:
 		reachedend = false;
 	}
 
+	void setMinMaxBufferLoc(float min, float max){
+		bufferlocminpercent = min;
+		bufferlocmaxpercent = max;
+		bufferdistpercent = bufferlocmaxpercent - bufferlocminpercent;
+	}
+
 	const std::string & readStr(int numsamptstoread){
 		if(isThreadRunning()){
 			return bufferstr;
@@ -209,6 +258,9 @@ public:
 		}
 
 		int maxlen = oldfullbuffersize-1;
+		int startsamp = bufferlocminpercent * maxlen;
+		int endsamp = bufferlocmaxpercent * maxlen;
+		int distsamp = bufferdistpercent * maxlen;
 
 		if(loop || mayread){
 
@@ -216,11 +268,18 @@ public:
 
 				bufferlocf += bufferspeedf;
 
-				if(bufferlocf>=maxlen){
-					bufferlocf-=maxlen;
+				// if(bufferlocf>=maxlen){
+				if(bufferlocf>=endsamp){
+					bufferlocf-=distsamp;
+					reachedend = true;
+					mayread = false;
+				} else if(bufferlocf<startsamp){
+					bufferlocf+=distsamp;
 					reachedend = true;
 					mayread = false;
 				}
+
+
 
 				int idx = (int) bufferlocf;
 				bufferstr[i] = fullbufferstr[idx];
@@ -308,9 +367,7 @@ public:
 
 
 
-// class ofxFlite;
-// class s373AVSpeak;
-// typedef ofxFlite s373AVSpeak;
+
 class s373AVSpeak {
 protected:
 
@@ -326,7 +383,8 @@ public:
 	s373AVSpeak(){}
 
 
-	void setup(int sr, int bs, std::string call="hello world", float speed=1, float vol = 1, bool doloop = true, int vom = 0) {
+	void setup(int sr, int bs, std::string call="hello world",
+	float speed=1, float vol = 1, bool doloop = true, int vom = 0) {
 
 		samplerate = sr;
 		buffersize = bs;
@@ -386,6 +444,10 @@ public:
 		return speakthread.getBufferLocPercent();
 	}
 
+	s373AVSpeak* setMinMaxBufferLoc(float min, float max){
+		speakthread.setMinMaxBufferLoc(min,max);
+		return this;
+	}
 
 	/*virtual*/// s373AChannel * processBuffer(  float inmastervol=1.0f  ){
 	float * processBuffer( void ){
@@ -448,5 +510,4 @@ public:
 };
 
 
-// typedef ofxFlite s373AVSpeak;
 typedef s373AVSpeak ofxFlite;
