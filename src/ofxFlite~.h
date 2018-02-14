@@ -240,6 +240,7 @@ public:
 		mayread = true;
 		reachedend = false;
 	}
+	bool getLoop(){ return loop; }
 
 	void setMinMaxBufferLoc(float min, float max){
 		bufferlocminpercent = min;
@@ -433,6 +434,14 @@ public:
 
 	float getSpeakSpeed(){
 		return speakspeed;
+	}
+	s373AVSpeak* setLoop(bool b){
+		speakthread.setLoop(b);
+		return this;
+	}
+
+	bool getLoop(){
+		return speakthread.getLoop();
 	}
 
 	s373AVSpeak* setBufferLocPercent(float per){
