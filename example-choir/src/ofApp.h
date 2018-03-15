@@ -44,6 +44,12 @@ class ofApp : public ofBaseApp{
 
 			}
 
+			// wave voices volumes
+			for(int i=0; i<NUMV;i++){
+				float v = cosf(ofGetElapsedTimef()*0.25 + i*TWO_PI/10.0f) * 0.5 + 0.5;
+				flite[i]->setVolume( v);
+			}
+
 		}
 
 
@@ -70,7 +76,7 @@ class ofApp : public ofBaseApp{
 			for(int i=0; i<NUMV; i++){
 
 				ofSetColor( 100, 200, 72);
-				flite[i]->draw(100, 400 + i*12, 25);
+				flite[i]->draw(100, 400 + i*12, 100);
 
 				if(flite[i]->isThreadRunning()){
 					ofSetColor(0,255,0);
