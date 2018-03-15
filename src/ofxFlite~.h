@@ -46,6 +46,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include "Poco/Mutex.h"
 #include "ofMain.h"
 #include "flite.h"
 
@@ -243,6 +244,8 @@ public:
 	bool getLoop(){ return loop; }
 
 	void setMinMaxBufferLoc(float min, float max){
+		min = CLAMP(min,0,1);
+		max = CLAMP(max,0,1);
 		bufferlocminpercent = min;
 		bufferlocmaxpercent = max;
 		bufferdistpercent = bufferlocmaxpercent - bufferlocminpercent;
@@ -378,6 +381,7 @@ protected:
 	int samplerate,buffersize;
 	int voiceom;
 	std::vector<float> audiovec;
+	Poco::FastMutex mute;
 
 public:
 	~s373AVSpeak(){}
@@ -398,31 +402,37 @@ public:
 	}
 
 
-	void setVoice(int n){
+	s373AVSpeak*  setVoice(int n){
 		speakthread.setNewVoice(n);
+		return this;
 	}
 
-	void setText(const std::string & t){
+	s373AVSpeak*  setText(const std::string & t){
 		systemcall=t;
 		speakthread.setSystemCall(t);
 		// speakthread.setLoop(false);
 		speakthread.setBufferLocPercent(0.0f);
+		return this;
 	}
 
-	void loadFile(const std::string & t){
+	s373AVSpeak*  loadFile(const std::string & t){
 		systemcall = speakthread.loadFile(t);
 		speakthread.setSystemCall(systemcall);
+		return this;
 	}
 
+	s373AVSpeak* setVolume(float v) { volume = v; return this;}
 
 
 	inline void calcreaderdata(){
 
 		const std::string & data = speakthread.readStr(buffersize);
 
+		mute.lock();
 		for(int i=0; i<buffersize;i++){
 			audiovec[i] = ofMap(data[i],-127,127,-volume,volume);
 		}
+		mute.unlock();
 
 	}
 
@@ -462,7 +472,6 @@ public:
 	float * processBuffer( void ){
 
 		calcreaderdata();
-
 		return &audiovec[0];
 
 	}
@@ -500,16 +509,17 @@ public:
 
 		}
 
-
-		for(int i=0; i<buffersize-4;i+=3){
-			ofLine(
-				ofMap(i,0,buffersize,0,ofGetWidth()),
-				ofMap(audiovec[i],1,-1,0,ofGetHeight()),
-				ofMap(i+3,0,buffersize,0,ofGetWidth()),
-				ofMap(audiovec[i+3],1,-1,0,ofGetHeight()) );
+		if(mute.tryLock(20)){
+			for(int i=0; i<buffersize-4;i+=3){
+				ofLine(
+					ofMap(i,0,buffersize,0,ofGetWidth()),
+					ofMap(audiovec[i],1,-1,0,ofGetHeight()),
+					ofMap(i+3,0,buffersize,0,ofGetWidth()),
+					ofMap(audiovec[i+3],1,-1,0,ofGetHeight()) );
+			}
+			mute.unlock();
+			ofDrawBitmapString(info, x, y);
 		}
-
-		ofDrawBitmapString(info, x, y);
 
 
 	}
